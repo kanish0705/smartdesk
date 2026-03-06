@@ -500,6 +500,13 @@ async def serve_upload(folder: str, filename: str):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")
 
+# Health check endpoint for Render
+@app.head("/")
+@app.get("/health")
+async def health_check():
+    """Health check for deployment platforms"""
+    return {"status": "ok"}
+
 # Serve main UI at root
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
