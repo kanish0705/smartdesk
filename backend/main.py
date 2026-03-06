@@ -5,7 +5,7 @@ A clean working prototype for project evaluation
 from fastapi import FastAPI, Query, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import date, datetime
@@ -21,28 +21,13 @@ try:
 except ImportError:
     EXCEL_SUPPORT = False
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Smart Campus Assistant",
-    description="College Student Assistant - Timetable, Announcements & Resources",
-    version="1.0.0",
-    docs_url="/docs"
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Create uploads directory
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 TIMETABLE_DIR = os.path.join(UPLOAD_DIR, "timetables")
 ANNOUNCEMENT_DIR = os.path.join(UPLOAD_DIR, "announcements")
 RESOURCE_DIR = os.path.join(UPLOAD_DIR, "resources")
+STATIC_DIR = os.path.join(os.path.dirname(BASE_DIR), "static")
 
 for directory in [UPLOAD_DIR, TIMETABLE_DIR, ANNOUNCEMENT_DIR, RESOURCE_DIR]:
     os.makedirs(directory, exist_ok=True)
@@ -515,10 +500,29 @@ async def serve_upload(folder: str, filename: str):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")
 
-# Mount static files directory
-static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-if os.path.exists(static_path):
-    app.mount("/static", StaticFiles(directory=static_path, html=True), name="static")
+# Serve main UI at root
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
+    """Serve the student portal"""
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Smart Campus Assistant</h1><p>UI files not found. Check deployment.</p>")
+
+# Serve admin panel
+@app.get("/admin", response_class=HTMLResponse)
+async def serve_admin():
+    """Serve the admin panel"""
+    admin_path = os.path.join(STATIC_DIR, "admin.html")
+    if os.path.exists(admin_path):
+        with open(admin_path, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Admin Panel</h1><p>Admin UI not found.</p>")
+
+# Mount static files directory for CSS, JS, images
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 if __name__ == "__main__":
     import uvicorn
